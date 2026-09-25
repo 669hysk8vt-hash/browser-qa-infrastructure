@@ -8,6 +8,7 @@
     "test:edge": "playwright test --project=edge-stable"
   },
   "devDependencies": {
-    "@playwright/test": "1.63.0"
+    "@playwright/test": "1.63.0",
+    "pdf-lib": "1.17.1"
   }
 }
