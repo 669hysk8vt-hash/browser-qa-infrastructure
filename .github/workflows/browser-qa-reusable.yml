@@ -12,6 +12,9 @@ jobs:
     runs-on: windows-latest
 
     steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
       - name: Set up Node.js LTS
         uses: actions/setup-node@v7
         with:
@@ -38,3 +41,19 @@ jobs:
             throw "npm is not available on PATH."
           }
           Write-Host "Windows infrastructure validation passed."
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Print Playwright version
+        run: npx playwright --version
+
+      - name: Validate Chrome stable project
+        shell: pwsh
+        run: |
+          node -e "const config = require('./playwright.config'); const project = config.projects.find(({ name }) => name === 'chrome-stable'); if (!project || project.use.browserName !== 'chromium' || project.use.channel !== 'chrome') process.exit(1);"
+
+      - name: Validate Edge stable project
+        shell: pwsh
+        run: |
+          node -e "const config = require('./playwright.config'); const project = config.projects.find(({ name }) => name === 'edge-stable'); if (!project || project.use.browserName !== 'chromium' || project.use.channel !== 'msedge') process.exit(1);"
