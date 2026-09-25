@@ -20,7 +20,7 @@ permissions:
 
 jobs:
   validate-windows:
-    if: github.event_name == 'workflow_dispatch'
+    if: github.repository == '669hysk8vt-hash/browser-qa-infrastructure' && github.event_name == 'workflow_dispatch'
     runs-on: windows-latest
 
     steps:
@@ -167,7 +167,7 @@ jobs:
           if-no-files-found: warn
 
   validate-caller:
-    if: github.event_name == 'workflow_call'
+    if: github.repository != '669hysk8vt-hash/browser-qa-infrastructure'
     runs-on: windows-latest
     defaults:
       run:
