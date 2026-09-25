@@ -9,6 +9,11 @@ module.exports = defineConfig({
   use: {
     trace: 'on',
   },
+  webServer: {
+    command: 'node scripts/serve-test-site.js',
+    url: 'http://127.0.0.1:4173/healthz',
+    timeout: 10_000,
+  },
   projects: [
     {
       name: 'chrome-stable',

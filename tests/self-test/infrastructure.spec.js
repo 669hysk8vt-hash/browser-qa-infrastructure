@@ -1,12 +1,9 @@
 const fs = require('node:fs/promises');
 const path = require('node:path');
-const { pathToFileURL } = require('node:url');
 const { test, expect } = require('@playwright/test');
 
 const artifactDirectory = path.resolve(__dirname, '../../artifacts/self-test');
-const selfTestUrl = pathToFileURL(
-  path.resolve(__dirname, '../../test-site/self-test.html'),
-).href;
+const selfTestUrl = 'http://127.0.0.1:4173/self-test.html';
 
 const expectedBrowsers = {
   'chrome-stable': {
@@ -29,8 +26,12 @@ test('configured branded browser passes the infrastructure self-test', async ({
   const expected = expectedBrowsers[testInfo.project.name];
   expect(expected, `Unexpected Playwright project: ${testInfo.project.name}`).toBeTruthy();
 
-  await page.goto(selfTestUrl);
+  const navigationResponse = await page.goto(selfTestUrl);
+  expect(navigationResponse).not.toBeNull();
+  expect(navigationResponse.status()).toBe(200);
   expect(page.url()).toBe(selfTestUrl);
+  expect(new URL(page.url()).origin).toBe('http://127.0.0.1:4173');
+  expect(page.url()).not.toMatch(/^file:/);
   await expect(page).toHaveTitle('Browser QA self-test');
   await expect(page.getByRole('heading', { name: 'Browser QA self-test' })).toBeVisible();
   await expect(page.locator('#javascript-status')).toHaveText('JavaScript executed.');
