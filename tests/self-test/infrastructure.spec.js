@@ -29,8 +29,8 @@ test('configured branded browser passes the infrastructure self-test', async ({
   const expected = expectedBrowsers[testInfo.project.name];
   expect(expected, `Unexpected Playwright project: ${testInfo.project.name}`).toBeTruthy();
 
-  const response = await page.goto(selfTestUrl);
-  expect(response, 'file:// navigations do not have an HTTP response').toBeNull();
+  await page.goto(selfTestUrl);
+  expect(page.url()).toBe(selfTestUrl);
   await expect(page).toHaveTitle('Browser QA self-test');
   await expect(page.getByRole('heading', { name: 'Browser QA self-test' })).toBeVisible();
   await expect(page.locator('#javascript-status')).toHaveText('JavaScript executed.');
