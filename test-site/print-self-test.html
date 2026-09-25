@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Browser QA print self-test</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+
+      @page {
+        size: A4 portrait;
+        margin: 16mm;
+      }
+
+      html {
+        color: #172033;
+        background: #ffffff;
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 11pt;
+        line-height: 1.35;
+      }
+
+      body {
+        width: 178mm;
+        margin: 16mm auto;
+      }
+
+      header {
+        padding-bottom: 5mm;
+        border-bottom: 1.5pt solid #2457a6;
+      }
+
+      h1 {
+        margin: 0 0 2mm;
+        font-size: 22pt;
+      }
+
+      h2 {
+        margin: 6mm 0 2mm;
+        font-size: 14pt;
+      }
+
+      p {
+        margin: 0 0 3mm;
+      }
+
+      .summary {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 4mm;
+        margin: 6mm 0;
+      }
+
+      .summary section {
+        min-height: 25mm;
+        padding: 4mm;
+        border: 1pt solid #8ca4c8;
+        background: #eef4fc;
+      }
+
+      .summary strong {
+        display: block;
+        margin-bottom: 2mm;
+        color: #173f7a;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      th,
+      td {
+        padding: 2.5mm 3mm;
+        border: 0.75pt solid #71819a;
+        text-align: left;
+      }
+
+      th {
+        background: #dce8f8;
+      }
+
+      footer {
+        margin-top: 7mm;
+        padding-top: 3mm;
+        border-top: 0.75pt solid #71819a;
+        font-size: 9pt;
+      }
+
+      #print-only-marker {
+        display: none;
+      }
+
+      @media print {
+        body {
+          width: auto;
+          margin: 0;
+        }
+
+        #print-only-marker {
+          display: block;
+          margin-top: 3mm;
+          color: #2457a6;
+          font-weight: bold;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Browser QA print self-test</h1>
+      <p>Deterministic one-page document for automated Chromium print-to-PDF validation.</p>
+      <p id="print-only-marker">Print media is active</p>
+    </header>
+
+    <main>
+      <div class="summary">
+        <section><strong>Format</strong>A4 portrait</section>
+        <section><strong>Purpose</strong>Print layout verification</section>
+        <section><strong>Expected pages</strong>Exactly one</section>
+      </div>
+
+      <h2>Validation checklist</h2>
+      <table>
+        <thead>
+          <tr><th>Check</th><th>Expected result</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Source</td><td>Local HTTP test server</td></tr>
+          <tr><td>Media</td><td>Print-specific marker is visible</td></tr>
+          <tr><td>Page size</td><td>A4 portrait dimensions</td></tr>
+          <tr><td>Pagination</td><td>One page only</td></tr>
+        </tbody>
+      </table>
+
+      <h2>Structured content</h2>
+      <p>This page uses headings, grouped summary panels, a table, borders, spacing, and background colors to exercise common print-layout behavior.</p>
+      <p>The document is self-contained: it loads no external fonts, images, scripts, libraries, or network resources.</p>
+    </main>
+
+    <footer>Browser QA infrastructure · print/PDF engine self-test</footer>
+  </body>
+</html>

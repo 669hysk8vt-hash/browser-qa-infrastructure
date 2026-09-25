@@ -1,9 +1,13 @@
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const { test, expect } = require('@playwright/test');
+const { PDFDocument } = require('pdf-lib');
 
 const artifactDirectory = path.resolve(__dirname, '../../artifacts/self-test');
 const selfTestUrl = 'http://127.0.0.1:4173/self-test.html';
+const printSelfTestUrl = 'http://127.0.0.1:4173/print-self-test.html';
+const a4SizeInPoints = { width: 595.28, height: 841.89 };
+const a4ToleranceInPoints = 2;
 const indexedDbSelfTest = {
   databaseName: 'browser-qa-self-test',
   objectStoreName: 'records',
@@ -179,5 +183,65 @@ test('configured branded browser passes the infrastructure self-test', async ({
   await fs.writeFile(
     path.join(artifactDirectory, `${testInfo.project.name}-indexeddb.json`),
     `${JSON.stringify(indexedDbEvidence, null, 2)}\n`,
+  );
+});
+
+test('configured branded browser generates a valid one-page A4 PDF', async ({
+  browser,
+  page,
+}, testInfo) => {
+  expect(expectedBrowsers[testInfo.project.name], `Unexpected Playwright project: ${testInfo.project.name}`).toBeTruthy();
+
+  const navigationResponse = await page.goto(printSelfTestUrl);
+  expect(navigationResponse, 'The print self-test navigation did not return a response.').not.toBeNull();
+  expect(navigationResponse.status()).toBe(200);
+  expect(page.url()).toBe(printSelfTestUrl);
+  expect(new URL(page.url()).origin).toBe('http://127.0.0.1:4173');
+  await expect(page).toHaveTitle('Browser QA print self-test');
+  await expect(page.getByRole('heading', { name: 'Browser QA print self-test' })).toBeVisible();
+
+  await page.emulateMedia({ media: 'print' });
+  const printMarker = page.locator('#print-only-marker');
+  await expect(printMarker).toBeVisible();
+  await expect(printMarker).toHaveCSS('display', 'block');
+  await expect(printMarker).toHaveCSS('color', 'rgb(36, 87, 166)');
+
+  await fs.mkdir(artifactDirectory, { recursive: true });
+  const pdfPath = path.join(artifactDirectory, `${testInfo.project.name}-print.pdf`);
+  const pdfBuffer = await page.pdf({
+    path: pdfPath,
+    format: 'A4',
+    landscape: false,
+    printBackground: true,
+    preferCSSPageSize: true,
+    scale: 1,
+  });
+  expect(pdfBuffer.length).toBeGreaterThan(1_000);
+
+  const pdfDocument = await PDFDocument.load(pdfBuffer);
+  const pageCount = pdfDocument.getPageCount();
+  expect(pageCount).toBe(1);
+  const { width, height } = pdfDocument.getPage(0).getSize();
+  expect(height).toBeGreaterThan(width);
+  expect(Math.abs(width - a4SizeInPoints.width)).toBeLessThanOrEqual(a4ToleranceInPoints);
+  expect(Math.abs(height - a4SizeInPoints.height)).toBeLessThanOrEqual(a4ToleranceInPoints);
+
+  const evidence = {
+    project: testInfo.project.name,
+    browserVersion: browser.version(),
+    sourceUrl: page.url(),
+    pageCount,
+    expectedPageCount: 1,
+    pdfPageWidth: width,
+    pdfPageHeight: height,
+    orientation: 'portrait',
+    printMediaVerified: true,
+    pdfFileSize: pdfBuffer.length,
+    pdfPath: `artifacts/self-test/${testInfo.project.name}-print.pdf`,
+    pdfGenerationVerified: true,
+  };
+  await fs.writeFile(
+    path.join(artifactDirectory, `${testInfo.project.name}-print.json`),
+    `${JSON.stringify(evidence, null, 2)}\n`,
   );
 });
