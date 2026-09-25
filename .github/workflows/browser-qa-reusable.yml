@@ -12,29 +12,29 @@ jobs:
     runs-on: windows-latest
 
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
       - name: Set up Node.js LTS
         uses: actions/setup-node@v7
         with:
           node-version: lts/*
 
-      - name: Print Windows version
-        shell: pwsh
-        run: |
-          Get-ComputerInfo | Select-Object WindowsProductName, WindowsVersion, OsBuildNumber
+      - name: Install dependencies
+        run: npm ci
 
-      - name: Print Node.js version
-        run: node --version
+      - name: Print Playwright version
+        run: npx playwright --version
 
-      - name: Print npm version
-        run: npm --version
-
-      - name: Validate environment
-        shell: pwsh
-        run: |
-          if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
-            throw "Node.js is not available on PATH."
-          }
-          if (-not (Get-Command npm -ErrorAction SilentlyContinue)) {
-            throw "npm is not available on PATH."
-          }
-          Write-Host "Windows infrastructure validation passed."
+      - name: Validate Playwright projects
+        run: >-
+          node -e "const config = require('./playwright.config.js');
+          const expected = { 'chrome-stable': { browserName: 'chromium', channel: 'chrome' },
+          'edge-stable': { browserName: 'chromium', channel: 'msedge' } };
+          const projects = config.projects || [];
+          if (projects.map(({ name }) => name).sort().join(',') !== Object.keys(expected).sort().join(','))
+          throw new Error('Expected exactly the projects chrome-stable and edge-stable.');
+          for (const project of projects) { const wanted = expected[project.name];
+          if (project.use?.browserName !== wanted.browserName || project.use?.channel !== wanted.channel)
+          throw new Error(project.name + ' must use browserName ' + wanted.browserName + ' and channel ' + wanted.channel + '.'); }
+          console.log('Validated Playwright projects:', projects.map(({ name }) => name).join(', '));"
