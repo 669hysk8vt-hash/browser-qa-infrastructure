@@ -57,3 +57,63 @@ jobs:
         shell: pwsh
         run: |
           node -e "const config = require('./playwright.config'); const project = config.projects.find(({ name }) => name === 'edge-stable'); if (!project || project.use.browserName !== 'chromium' || project.use.channel !== 'msedge') process.exit(1);"
+
+      - name: Validate installed branded browsers
+        shell: pwsh
+        run: |
+          $browserCandidates = @{
+            "Google Chrome" = @(
+              "${env:ProgramFiles}\Google\Chrome\Application\chrome.exe",
+              "${env:ProgramFiles(x86)}\Google\Chrome\Application\chrome.exe",
+              "${env:LOCALAPPDATA}\Google\Chrome\Application\chrome.exe"
+            )
+            "Microsoft Edge" = @(
+              "${env:ProgramFiles}\Microsoft\Edge\Application\msedge.exe",
+              "${env:ProgramFiles(x86)}\Microsoft\Edge\Application\msedge.exe",
+              "${env:LOCALAPPDATA}\Microsoft\Edge\Application\msedge.exe"
+            )
+          }
+
+          foreach ($expectedProductName in $browserCandidates.Keys) {
+            $executable = $browserCandidates[$expectedProductName] |
+              Where-Object { Test-Path -LiteralPath $_ } |
+              Select-Object -First 1
+            if (-not $executable) {
+              throw "$expectedProductName executable was not found in a standard installation location."
+            }
+
+            $versionInfo = (Get-Item -LiteralPath $executable).VersionInfo
+            Write-Host "$expectedProductName executable: $executable"
+            Write-Host "$expectedProductName version: $($versionInfo.ProductVersion)"
+            Write-Host "$expectedProductName ProductName: $($versionInfo.ProductName)"
+            if ($versionInfo.ProductName -ne $expectedProductName) {
+              throw "Expected ProductName '$expectedProductName' but found '$($versionInfo.ProductName)' at '$executable'."
+            }
+          }
+
+      - name: Run branded browser self-test
+        run: npx playwright test tests/self-test/infrastructure.spec.js --project=chrome-stable --project=edge-stable
+
+      - name: Verify browser self-test artifacts
+        if: always()
+        shell: pwsh
+        run: |
+          $expectedArtifacts = @(
+            "artifacts/self-test/chrome-stable.png",
+            "artifacts/self-test/edge-stable.png",
+            "artifacts/self-test/chrome-stable-identity.json",
+            "artifacts/self-test/edge-stable-identity.json"
+          )
+          foreach ($artifact in $expectedArtifacts) {
+            if (-not (Test-Path -LiteralPath $artifact -PathType Leaf)) {
+              throw "Expected browser self-test artifact is absent: $artifact"
+            }
+          }
+
+      - name: Upload browser self-test artifacts
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: browser-self-test
+          path: artifacts/self-test/
+          if-no-files-found: error

@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Browser QA self-test</title>
+  </head>
+  <body>
+    <main>
+      <h1>Browser QA self-test</h1>
+      <p id="javascript-status">JavaScript has not run.</p>
+    </main>
+    <script>
+      window.browserQaSelfTest = Object.freeze({
+        marker: 'browser-qa-javascript-executed',
+        executed: true,
+      });
+      document.querySelector('#javascript-status').textContent = 'JavaScript executed.';
+    </script>
+  </body>
+</html>
