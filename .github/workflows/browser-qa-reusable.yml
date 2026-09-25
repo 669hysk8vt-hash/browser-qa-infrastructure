@@ -102,7 +102,9 @@ jobs:
             "artifacts/self-test/chrome-stable.png",
             "artifacts/self-test/edge-stable.png",
             "artifacts/self-test/chrome-stable-identity.json",
-            "artifacts/self-test/edge-stable-identity.json"
+            "artifacts/self-test/edge-stable-identity.json",
+            "artifacts/self-test/chrome-stable-indexeddb.json",
+            "artifacts/self-test/edge-stable-indexeddb.json"
           )
           foreach ($artifact in $expectedArtifacts) {
             if (-not (Test-Path -LiteralPath $artifact -PathType Leaf)) {
