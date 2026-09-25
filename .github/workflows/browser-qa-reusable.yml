@@ -2,6 +2,17 @@ name: Browser QA infrastructure validation
 
 on:
   workflow_call:
+    inputs:
+      test_command:
+        description: Playwright test command to run in the caller repository
+        required: false
+        type: string
+        default: npx playwright test
+      working_directory:
+        description: Directory containing the caller package and Playwright configuration
+        required: false
+        type: string
+        default: .
   workflow_dispatch:
 
 permissions:
@@ -9,6 +20,7 @@ permissions:
 
 jobs:
   validate-windows:
+    if: github.repository == '669hysk8vt-hash/browser-qa-infrastructure' && github.event_name == 'workflow_dispatch'
     runs-on: windows-latest
 
     steps:
@@ -152,4 +164,115 @@ jobs:
         with:
           name: playwright-test-results
           path: test-results/
+          if-no-files-found: warn
+
+  validate-caller:
+    if: github.repository != '669hysk8vt-hash/browser-qa-infrastructure'
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: ${{ inputs.working_directory }}
+
+    steps:
+      - name: Check out caller repository
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js LTS
+        uses: actions/setup-node@v7
+        with:
+          node-version: lts/*
+          cache: npm
+          cache-dependency-path: ${{ inputs.working_directory }}/package-lock.json
+
+      - name: Install caller dependencies
+        run: npm ci
+
+      - name: Print environment versions
+        shell: pwsh
+        run: |
+          Get-ComputerInfo | Select-Object WindowsProductName, WindowsVersion, OsBuildNumber
+          node --version
+          npm --version
+          npx playwright --version
+
+      - name: Validate installed branded browsers
+        shell: pwsh
+        run: |
+          $browserCandidates = @{
+            "Google Chrome" = @(
+              "${env:ProgramFiles}\Google\Chrome\Application\chrome.exe",
+              "${env:ProgramFiles(x86)}\Google\Chrome\Application\chrome.exe",
+              "${env:LOCALAPPDATA}\Google\Chrome\Application\chrome.exe"
+            )
+            "Microsoft Edge" = @(
+              "${env:ProgramFiles}\Microsoft\Edge\Application\msedge.exe",
+              "${env:ProgramFiles(x86)}\Microsoft\Edge\Application\msedge.exe",
+              "${env:LOCALAPPDATA}\Microsoft\Edge\Application\msedge.exe"
+            )
+          }
+          foreach ($expectedProductName in $browserCandidates.Keys) {
+            $executable = $browserCandidates[$expectedProductName] |
+              Where-Object { Test-Path -LiteralPath $_ } |
+              Select-Object -First 1
+            if (-not $executable) {
+              throw "$expectedProductName executable was not found in a standard installation location."
+            }
+            $versionInfo = (Get-Item -LiteralPath $executable).VersionInfo
+            Write-Host "$expectedProductName executable: $executable"
+            Write-Host "$expectedProductName version: $($versionInfo.ProductVersion)"
+            if ($versionInfo.ProductName -ne $expectedProductName) {
+              throw "Expected branded browser '$expectedProductName', but found '$($versionInfo.ProductName)'."
+            }
+          }
+
+      - name: Validate branded Playwright projects
+        shell: pwsh
+        run: |
+          $reporter = Join-Path $env:RUNNER_TEMP "validate-branded-projects.cjs"
+          @'
+          class BrandedProjectReporter {
+            onBegin(config) {
+              const expected = new Map([
+                ['chrome-stable', 'chrome'],
+                ['edge-stable', 'msedge'],
+              ]);
+              for (const [name, channel] of expected) {
+                const project = config.projects.find(candidate => candidate.name === name);
+                if (!project)
+                  throw new Error(`Missing required Playwright project: ${name}`);
+                if (project.use.browserName !== 'chromium' || project.use.channel !== channel)
+                  throw new Error(`${name} must use browserName chromium and channel ${channel}; generic Chromium is not allowed.`);
+                console.log(`Validated ${name}: chromium / ${channel}`);
+              }
+            }
+          }
+          module.exports = BrandedProjectReporter;
+          '@ | Set-Content -LiteralPath $reporter -Encoding utf8
+          npx playwright test --list --reporter=$reporter
+
+      - name: Run caller Playwright tests
+        run: ${{ inputs.test_command }}
+
+      - name: Upload caller Playwright report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report
+          path: ${{ inputs.working_directory }}/playwright-report/
+          if-no-files-found: warn
+
+      - name: Upload caller Playwright test results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-test-results
+          path: ${{ inputs.working_directory }}/test-results/
+          if-no-files-found: warn
+
+      - name: Upload caller diagnostic artifacts
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: browser-qa-artifacts
+          path: ${{ inputs.working_directory }}/artifacts/
           if-no-files-found: warn

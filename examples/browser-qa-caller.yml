@@ -1,0 +1,12 @@
+name: Browser QA
+
+on:
+  workflow_dispatch:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  browser-qa:
+    uses: 669hysk8vt-hash/browser-qa-infrastructure/.github/workflows/browser-qa-reusable.yml@main
