@@ -1,0 +1,13 @@
+{
+  "name": "browser-qa-infrastructure",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "test": "playwright test",
+    "test:chrome": "playwright test --project=chrome-stable",
+    "test:edge": "playwright test --project=edge-stable"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0"
+  }
+}
