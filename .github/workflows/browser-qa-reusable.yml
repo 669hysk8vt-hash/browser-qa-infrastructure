@@ -112,7 +112,7 @@ jobs:
 
       - name: Upload browser self-test artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: browser-self-test
           path: artifacts/self-test/
