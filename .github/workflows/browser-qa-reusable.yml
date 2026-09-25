@@ -95,10 +95,10 @@ jobs:
         run: npx playwright test tests/self-test/infrastructure.spec.js --project=chrome-stable --project=edge-stable
 
       - name: Verify browser self-test artifacts
-        if: always()
         shell: pwsh
         run: |
           $expectedArtifacts = @(
+            "playwright-report/index.html",
             "artifacts/self-test/chrome-stable.png",
             "artifacts/self-test/edge-stable.png",
             "artifacts/self-test/chrome-stable-identity.json",
@@ -110,6 +110,12 @@ jobs:
             }
           }
 
+          $traceArchives = Get-ChildItem -Path "test-results" -Filter "*.zip" -File -Recurse -ErrorAction SilentlyContinue
+          if (-not $traceArchives) {
+            throw "No Playwright trace ZIP was found under test-results/."
+          }
+          $traceArchives | ForEach-Object { Write-Host "Playwright trace: $($_.FullName)" }
+
       - name: Upload browser self-test artifacts
         if: always()
         uses: actions/upload-artifact@v7
@@ -117,3 +123,19 @@ jobs:
           name: browser-self-test
           path: artifacts/self-test/
           if-no-files-found: error
+
+      - name: Upload Playwright HTML report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report
+          path: playwright-report/
+          if-no-files-found: warn
+
+      - name: Upload Playwright test results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-test-results
+          path: test-results/
+          if-no-files-found: warn
