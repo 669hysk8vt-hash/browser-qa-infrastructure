@@ -8,6 +8,11 @@ const selfTestUrl = 'http://127.0.0.1:4173/self-test.html';
 const printSelfTestUrl = 'http://127.0.0.1:4173/print-self-test.html';
 const a4SizeInPoints = { width: 595.28, height: 841.89 };
 const a4ToleranceInPoints = 2;
+const desktopViewports = [
+  { width: 1366, height: 768 },
+  { width: 1440, height: 900 },
+  { width: 1920, height: 1080 },
+];
 const indexedDbSelfTest = {
   databaseName: 'browser-qa-self-test',
   objectStoreName: 'records',
@@ -184,6 +189,110 @@ test('configured branded browser passes the infrastructure self-test', async ({
     path.join(artifactDirectory, `${testInfo.project.name}-indexeddb.json`),
     `${JSON.stringify(indexedDbEvidence, null, 2)}\n`,
   );
+});
+
+test('configured branded browser passes the viewport and runtime self-test', async ({
+  browser,
+  page,
+}, testInfo) => {
+  expect(expectedBrowsers[testInfo.project.name], `Unexpected Playwright project: ${testInfo.project.name}`).toBeTruthy();
+
+  const consoleErrors = [];
+  const pageErrors = [];
+  const failedRequests = [];
+  const selfTestOrigin = new URL(selfTestUrl).origin;
+
+  page.on('console', (message) => {
+    if (message.type() === 'error') {
+      consoleErrors.push({
+        text: message.text(),
+        location: message.location(),
+      });
+    }
+  });
+  page.on('pageerror', (error) => {
+    pageErrors.push({
+      name: error.name,
+      message: error.message,
+      stack: error.stack,
+    });
+  });
+  page.on('requestfailed', (request) => {
+    // Ignore browser-owned traffic; failures from the test origin are page/resource failures.
+    if (request.url().startsWith(`${selfTestOrigin}/`)) {
+      failedRequests.push({
+        url: request.url(),
+        method: request.method(),
+        resourceType: request.resourceType(),
+        errorText: request.failure()?.errorText ?? 'Unknown request failure',
+      });
+    }
+  });
+
+  await fs.mkdir(artifactDirectory, { recursive: true });
+  const testedViewports = [];
+
+  for (const requested of desktopViewports) {
+    await page.setViewportSize(requested);
+    const navigationResponse = await page.goto(selfTestUrl);
+    const actualViewportDimensions = await page.evaluate(() => ({
+      width: window.innerWidth,
+      height: window.innerHeight,
+    }));
+    const documentWidths = await page.evaluate(() => ({
+      scrollWidth: document.documentElement.scrollWidth,
+      clientWidth: document.documentElement.clientWidth,
+    }));
+    const headingVisible = await page
+      .getByRole('heading', { name: 'Browser QA self-test' })
+      .isVisible();
+    const screenshotPath = `artifacts/self-test/${testInfo.project.name}-${requested.width}x${requested.height}.png`;
+    await page.screenshot({
+      path: path.resolve(__dirname, '../..', screenshotPath),
+      fullPage: true,
+    });
+
+    testedViewports.push({
+      requestedViewport: requested,
+      actualViewportDimensions,
+      httpStatus: navigationResponse?.status() ?? null,
+      headingVisible,
+      documentWidths,
+      horizontalOverflowDetected: documentWidths.scrollWidth > documentWidths.clientWidth,
+      screenshotPath,
+    });
+  }
+
+  const evidence = {
+    project: testInfo.project.name,
+    browserVersion: browser.version(),
+    sourceUrl: selfTestUrl,
+    testedViewports,
+    consoleErrors,
+    pageErrors,
+    failedRequests,
+    runtimeErrorsVerified: true,
+    viewportMatrixVerified: true,
+  };
+  await fs.writeFile(
+    path.join(artifactDirectory, `${testInfo.project.name}-runtime.json`),
+    `${JSON.stringify(evidence, null, 2)}\n`,
+  );
+
+  for (const result of testedViewports) {
+    const viewportLabel = `${result.requestedViewport.width}x${result.requestedViewport.height}`;
+    expect(result.httpStatus, `${viewportLabel} did not return HTTP 200.`).toBe(200);
+    expect(result.actualViewportDimensions).toEqual(result.requestedViewport);
+    expect(result.headingVisible, `The heading was not visible at ${viewportLabel}.`).toBe(true);
+    expect(
+      result.horizontalOverflowDetected,
+      `Horizontal overflow at ${viewportLabel}: `
+        + `${result.documentWidths.scrollWidth}px > ${result.documentWidths.clientWidth}px.`,
+    ).toBe(false);
+  }
+  expect(consoleErrors, 'The self-test page emitted console errors.').toEqual([]);
+  expect(pageErrors, 'The self-test page emitted uncaught JavaScript errors.').toEqual([]);
+  expect(failedRequests, 'The self-test page had failed requests.').toEqual([]);
 });
 
 test('configured branded browser generates a valid one-page A4 PDF', async ({
