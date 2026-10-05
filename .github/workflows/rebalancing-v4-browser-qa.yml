@@ -39,6 +39,9 @@ jobs:
       - name: Install Playwright dependencies
         run: npm ci
 
+      - name: Install Playwright FFmpeg support
+        run: npx playwright install ffmpeg
+
       - name: Python deterministic regression suite
         working-directory: rebalancing-v4
         run: python test_rebalancing_engine_v4.py
