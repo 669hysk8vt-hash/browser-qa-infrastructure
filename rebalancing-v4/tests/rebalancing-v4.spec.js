@@ -45,7 +45,7 @@ test.describe('Return Stacking Engine v4 browser QA', () => {
 
   test('produces a usable indicative order path with explicit stale-price override', async ({ page }) => {
     await waitForApp(page);
-    const override = page.getByLabel(/Override manuale: mostra comunque la distinta/i);
+    const override = page.getByRole('checkbox', { name: /Override manuale: mostra comunque la distinta/i });
     if (await override.count()) {
       await override.check();
       await expect(page.getByText(/Distinta Operativa Indicativa/i)).toBeVisible({ timeout: 30_000 });
