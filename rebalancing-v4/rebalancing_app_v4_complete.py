@@ -13,6 +13,7 @@ import hashlib
 import io
 import json
 import math
+import threading
 from functools import lru_cache
 from typing import Any
 
@@ -35,6 +36,7 @@ PROXY_CONVERSION_MODE = {
     "BND": "rate_only",  # intentional approximation for the NTSG bond overlay
 }
 QUOTE_MAX_AGE_DAYS = 4
+YF_LOCK = threading.RLock()
 
 DEFAULT_STRESS = pd.DataFrame(
     [
@@ -521,7 +523,8 @@ def export_config(df: pd.DataFrame, settings: dict[str,Any]) -> str:
 def fetch_fx_rate(symbol: str) -> tuple[float,str]:
     import yfinance as yf
     symbol = str(symbol).strip().upper()
-    data = yf.download(symbol, period="10d", auto_adjust=False, progress=False, threads=False, repair=False, timeout=10)
+    with YF_LOCK:
+        data = yf.download(symbol, period="10d", auto_adjust=False, progress=False, threads=False, repair=False, timeout=10)
     close = data["Close"] if "Close" in data else data
     if isinstance(close, pd.DataFrame):
         close = close.iloc[:,0]
@@ -537,22 +540,23 @@ def fetch_live_quote(ticker_symbol: str) -> dict[str,Any]:
     symbol = str(ticker_symbol).strip().upper()
     if not symbol:
         raise ValueError("Ticker vuoto.")
-    t = yf.Ticker(symbol)
-    hist = t.history(period="10d", auto_adjust=False, repair=False, timeout=10)
-    if hist.empty or "Close" not in hist:
-        raise RuntimeError(f"{symbol}: storico prezzi assente.")
-    close = pd.to_numeric(hist["Close"], errors="coerce").dropna()
-    raw_price = float(close.iloc[-1])
-    try:
-        fast = t.fast_info
-        raw_currency = str(fast.get("currency") or "").strip() if fast is not None else ""
-    except Exception:
-        raw_currency = ""
-    if not raw_currency:
+    with YF_LOCK:
+        t = yf.Ticker(symbol)
+        hist = t.history(period="10d", auto_adjust=False, repair=False, timeout=10)
+        if hist.empty or "Close" not in hist:
+            raise RuntimeError(f"{symbol}: storico prezzi assente.")
+        close = pd.to_numeric(hist["Close"], errors="coerce").dropna()
+        raw_price = float(close.iloc[-1])
         try:
-            raw_currency = str((t.info or {}).get("currency") or "").strip()
+            fast = t.fast_info
+            raw_currency = str(fast.get("currency") or "").strip() if fast is not None else ""
         except Exception:
             raw_currency = ""
+        if not raw_currency:
+            try:
+                raw_currency = str((t.info or {}).get("currency") or "").strip()
+            except Exception:
+                raw_currency = ""
     if not raw_currency:
         raise RuntimeError(f"{symbol}: valuta non determinabile.")
     ccy = raw_currency.upper()
@@ -573,11 +577,12 @@ def fetch_live_quote(ticker_symbol: str) -> dict[str,Any]:
 def lookup_asset(symbol: str) -> dict[str,Any]:
     import yfinance as yf
     quote = fetch_live_quote(symbol)
-    t = yf.Ticker(quote["ticker"])
-    try:
-        info = t.info or {}
-    except Exception:
-        info = {}
+    with YF_LOCK:
+        t = yf.Ticker(quote["ticker"])
+        try:
+            info = t.info or {}
+        except Exception:
+            info = {}
     name = str(info.get("shortName") or info.get("longName") or quote["ticker"])
     return {**quote, "name":name}
 
@@ -592,7 +597,8 @@ def get_historical_proxy_returns(proxy_tuple: tuple[str,...], years: int) -> tup
     symbols = list(dict.fromkeys(proxies + (["EURUSD=X"] if need_fx else [])))
     end = dt.date.today() + dt.timedelta(days=1)
     start = end - dt.timedelta(days=int(years*365.25)+45)
-    data = yf.download(symbols, start=start, end=end, progress=False, auto_adjust=True, threads=True, repair=False, timeout=20)
+    with YF_LOCK:
+        data = yf.download(symbols, start=start, end=end, progress=False, auto_adjust=True, threads=False, repair=False, timeout=20)
     close = data["Close"] if isinstance(data.columns, pd.MultiIndex) else data
     if isinstance(close, pd.Series):
         close = close.to_frame(symbols[0])
