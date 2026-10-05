@@ -45,14 +45,12 @@ test.describe('Return Stacking Engine v4 browser QA', () => {
 
   test('produces a usable indicative order path with explicit stale-price override', async ({ page }) => {
     await waitForApp(page);
+    await expect(page.getByText(/Cash finale/i).first()).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText(/Distinta indicativa bloccata:/i)).toBeVisible({ timeout: 30_000 });
     const override = page.getByRole('checkbox', { name: /Override manuale: mostra comunque la distinta/i });
-    if (await override.count()) {
-      await override.check();
-      await expect(page.getByText(/Distinta Operativa Indicativa/i)).toBeVisible({ timeout: 30_000 });
-    } else {
-      await expect(page.getByText(/Distinta Operativa Indicativa/i)).toBeVisible({ timeout: 30_000 });
-    }
-    await expect(page.getByText(/Cash finale/i).first()).toBeVisible();
+    await expect(override).toBeVisible({ timeout: 30_000 });
+    await override.check();
+    await expect(page.getByText(/Distinta Operativa Indicativa/i)).toBeVisible({ timeout: 30_000 });
     await expect(page.locator('[data-testid="stException"]')).toHaveCount(0);
   });
 
