@@ -642,7 +642,7 @@ def main():
         st.markdown("---")
         st.markdown("### ➕ Aggiungi strumento")
         search = st.text_input("Ticker da cercare", value="")
-        if st.button("Cerca quotazione", use_container_width=True) and search.strip():
+        if st.button("Cerca quotazione", width="stretch") and search.strip():
             clear_market_caches()
             found=None; errs=[]
             for sfx in ["", ".DE", ".MI", ".AS", ".PA", ".L"]:
@@ -679,7 +679,7 @@ def main():
 
         st.markdown("---")
         config_json=export_config(st.session_state.portfolio_data,settings)
-        st.download_button("📥 Esporta configurazione",config_json,file_name=f"return_stacking_config_v{CONFIG_SCHEMA_VERSION}.json",mime="application/json",use_container_width=True)
+        st.download_button("📥 Esporta configurazione",config_json,file_name=f"return_stacking_config_v{CONFIG_SCHEMA_VERSION}.json",mime="application/json",width="stretch")
         uploaded=st.file_uploader("Importa JSON",type=["json"])
         if uploaded is not None:
             raw=uploaded.getvalue(); digest=hashlib.sha256(raw).hexdigest()
@@ -718,7 +718,7 @@ def main():
     with tab_cockpit:
         top=st.columns([1.2,2.5,1.2])
         with top[0]:
-            if st.button("🔄 Aggiorna Quotazioni Yahoo",use_container_width=True):
+            if st.button("🔄 Aggiorna Quotazioni Yahoo",width="stretch"):
                 clear_market_caches(); upd=st.session_state.portfolio_data.copy(); failures=[]
                 for idx,ticker in upd["ticker"].items():
                     try:
@@ -734,7 +734,7 @@ def main():
             trend_now=float(df.loc[df["role"].eq("trend"),"target"].sum())
             gold_set=cc[0].number_input("Target Oro %",0.0,100.0,gold_now,0.5)
             trend_set=cc[1].number_input("Target Trend %",0.0,100.0,trend_now,0.5)
-            if cc[2].button("🎯 Applica target",use_container_width=True):
+            if cc[2].button("🎯 Applica target",width="stretch"):
                 try:
                     p=apply_role_target(df,"gold",gold_set,1); p=apply_role_target(p,"trend",trend_set,1)
                     # do not touch unrelated targets; efficient_core remains 0 only when used as plug
@@ -747,7 +747,7 @@ def main():
         # Main editor stays operationally compact. Price manual edits invalidate Yahoo verification.
         visible=["ticker","name","sleeve","role","shares","price","target","priority"]
         base=df.copy()
-        edited=st.data_editor(base,column_order=visible,hide_index=True,num_rows="fixed",use_container_width=True,key="portfolio_editor",column_config={
+        edited=st.data_editor(base,column_order=visible,hide_index=True,num_rows="fixed",width="stretch",key="portfolio_editor",column_config={
             "ticker":st.column_config.TextColumn("Ticker",disabled=True),"name":st.column_config.TextColumn("Strumento"),"sleeve":st.column_config.SelectboxColumn("Sleeve",options=SLEEVE_OPTIONS),"role":st.column_config.SelectboxColumn("Ruolo",options=ROLE_OPTIONS),"shares":st.column_config.NumberColumn("Quote",min_value=0,step=1),"price":st.column_config.NumberColumn("Prezzo EUR",min_value=0.01,format="€%.2f"),"target":st.column_config.NumberColumn("Target %",min_value=0.0,max_value=100.0,step=0.5),"priority":st.column_config.NumberColumn("Priorità",min_value=1,max_value=5,step=1)})
         if not edited[visible].equals(base[visible]):
             changed_price=~np.isclose(pd.to_numeric(edited["price"]),pd.to_numeric(base["price"]))
@@ -758,7 +758,7 @@ def main():
 
         with st.expander("Modello avanzato: look-through, proxy e metadata fiscali"):
             advcols=["ticker","equity_lt","equity_proxy","bond_lt","bond_proxy","gold_lt","gold_proxy","trend_lt","trend_proxy","pmc","tax_rate","price_asof","price_source"]
-            adv=st.data_editor(df,column_order=advcols,hide_index=True,num_rows="fixed",use_container_width=True,key="advanced_editor",column_config={"ticker":st.column_config.TextColumn("Ticker",disabled=True),"price_asof":st.column_config.TextColumn("Data prezzo",disabled=True),"price_source":st.column_config.TextColumn("Fonte",disabled=True)})
+            adv=st.data_editor(df,column_order=advcols,hide_index=True,num_rows="fixed",width="stretch",key="advanced_editor",column_config={"ticker":st.column_config.TextColumn("Ticker",disabled=True),"price_asof":st.column_config.TextColumn("Data prezzo",disabled=True),"price_source":st.column_config.TextColumn("Fonte",disabled=True)})
             if not adv[advcols].equals(df[advcols]):
                 try: st.session_state.portfolio_data=validate_portfolio(adv,ntsg_is_plug=bool(settings["ntsg_is_plug"])); st.session_state.pop("portfolio_editor",None); st.rerun()
                 except Exception as exc: st.error(str(exc))
@@ -791,7 +791,7 @@ def main():
         ready,problems=broker_data_status(df,active)
         st.markdown("#### 📡 Stato dati")
         status=df[["ticker","price","price_asof","price_source"]].copy(); status["Fresca Yahoo"]=status.apply(lambda r: quote_is_fresh(str(r.price_asof),str(r.price_source)),axis=1)
-        st.dataframe(status,hide_index=True,use_container_width=True)
+        st.dataframe(status,hide_index=True,width="stretch")
         override=False
         if not ready:
             st.warning("Distinta indicativa bloccata: " + " | ".join(problems))
@@ -799,7 +799,7 @@ def main():
         if not active.empty and (ready or override):
             st.markdown("#### 📑 Distinta Operativa Indicativa")
             st.caption("Quantità calcolate sui prezzi mostrati; non sono quotazioni eseguibili garantite.")
-            st.dataframe(active[["ticker","name","shares_delta","price","price_asof","price_source","total_eur"]],hide_index=True,use_container_width=True)
+            st.dataframe(active[["ticker","name","shares_delta","price","price_asof","price_source","total_eur"]],hide_index=True,width="stretch")
             lines=["=== DISTINTA INDICATIVA ==="]+[f"ACQUISTA {int(r.shares_delta)} {r.ticker} @ ~€{r.price:.2f} | €{r.total_eur:,.2f} | prezzo {r.price_source} {r.price_asof}" for _,r in active.iterrows()]
             st.code("\n".join(lines),language="text")
 
@@ -829,10 +829,10 @@ def main():
             c1,c2=st.columns(2)
             exp_df=pd.DataFrame({"Fattore":[FACTOR_LABELS[f] for f in FACTOR_NAMES],"Esposizione % NAV":[macro[f]/final_nav*100 for f in FACTOR_NAMES],"RC Euler % volatilità":[macro_rc[f]/port_vol*100 if port_vol else 0 for f in FACTOR_NAMES]})
             with c1:
-                fig=go.Figure(); fig.add_trace(go.Bar(x=exp_df["Fattore"],y=exp_df["Esposizione % NAV"],name="Esposizione % NAV")); fig.add_trace(go.Bar(x=exp_df["Fattore"],y=exp_df["RC Euler % volatilità"],name="Risk contribution")); fig.update_layout(template=template,barmode="group",title="Look-through vs contributo al rischio",height=330); st.plotly_chart(fig,use_container_width=True)
+                fig=go.Figure(); fig.add_trace(go.Bar(x=exp_df["Fattore"],y=exp_df["Esposizione % NAV"],name="Esposizione % NAV")); fig.add_trace(go.Bar(x=exp_df["Fattore"],y=exp_df["RC Euler % volatilità"],name="Risk contribution")); fig.update_layout(template=template,barmode="group",title="Look-through vs contributo al rischio",height=330); st.plotly_chart(fig,width="stretch")
             with c2:
                 ptab=pd.DataFrame({"Proxy":proxies,"Esposizione €":proxy_exp.values,"Esposizione % NAV":proxy_exp.values/final_nav*100,"RC Euler %":rc_pct})
-                st.dataframe(ptab,hide_index=True,use_container_width=True)
+                st.dataframe(ptab,hide_index=True,width="stretch")
 
         st.markdown("#### 💶 VaR / Expected Shortfall")
         vm=st.columns(4)
@@ -848,19 +848,19 @@ def main():
 
         st.markdown("#### 🧪 Matrice stress modificabile")
         stress=pd.DataFrame(settings.get("stress_matrix",DEFAULT_STRESS.to_dict(orient="records")))
-        stress_edit=st.data_editor(stress,hide_index=True,use_container_width=True,num_rows="dynamic",key="stress_editor")
+        stress_edit=st.data_editor(stress,hide_index=True,width="stretch",num_rows="dynamic",key="stress_editor")
         settings["stress_matrix"]=stress_edit.to_dict(orient="records")
         rows=[]
         for _,srow in stress_edit.iterrows():
             target=stress_portfolio(macro,final_nav,srow); sixty=(0.6*float(srow["Equity %"])+0.4*float(srow["Bond %"]))/100.0; eq=float(srow["Equity %"])/100.0
             rows.append({"Scenario":srow["Scenario"],"Target Stacking":f"{target*100:+.1f}%","100% Equity":f"{eq*100:+.1f}%","Classic 60/40":f"{sixty*100:+.1f}%"})
-        st.dataframe(pd.DataFrame(rows),hide_index=True,use_container_width=True)
+        st.dataframe(pd.DataFrame(rows),hide_index=True,width="stretch")
         st.caption("Sono scenari lineari configurabili, non backtest storici del portafoglio.")
 
         if risk_available:
             st.markdown("#### 🔗 Correlazione proxy")
             win=st.select_slider("Sedute",options=[30,90,252,min(756,len(hist))],value=min(252,len(hist)))
-            corr=hist.tail(int(win)).corr().round(2); fig=px.imshow(corr,text_auto=True,aspect="auto",range_color=[-1,1],color_continuous_scale="RdBu_r"); fig.update_layout(template=template,height=350); st.plotly_chart(fig,use_container_width=True)
+            corr=hist.tail(int(win)).corr().round(2); fig=px.imshow(corr,text_auto=True,aspect="auto",range_color=[-1,1],color_continuous_scale="RdBu_r"); fig.update_layout(template=template,height=350); st.plotly_chart(fig,width="stretch")
 
     with tab_traj:
         st.markdown("#### ⏳ Diluizione Legacy e PAC")
@@ -876,10 +876,10 @@ def main():
         with cc[2]: card_metric("Leva finale",f"{sim.iloc[-1]['Leva Lorda']:.2f}x",f"NAV €{sim.iloc[-1]['NAV']:,.0f}")
         c1,c2=st.columns(2)
         with c1:
-            fig=go.Figure(); fig.add_trace(go.Scatter(x=sim["Anno"],y=sim["Legacy %"],name="Legacy % NAV")); fig.add_trace(go.Scatter(x=sim["Anno"],y=sim["Stacking %"],name="Return Stacking % NAV")); fig.update_layout(template=template,title="Diluizione sleeve",height=340,yaxis_title="% NAV"); st.plotly_chart(fig,use_container_width=True)
+            fig=go.Figure(); fig.add_trace(go.Scatter(x=sim["Anno"],y=sim["Legacy %"],name="Legacy % NAV")); fig.add_trace(go.Scatter(x=sim["Anno"],y=sim["Stacking %"],name="Return Stacking % NAV")); fig.update_layout(template=template,title="Diluizione sleeve",height=340,yaxis_title="% NAV"); st.plotly_chart(fig,width="stretch")
         with c2:
-            fig=go.Figure(); fig.add_trace(go.Scatter(x=sim["Anno"],y=sim["Leva Lorda"],name="Leva lorda")); fig.update_layout(template=template,title="Leva look-through",height=340,yaxis_title="x NAV"); st.plotly_chart(fig,use_container_width=True)
-        st.dataframe(sim.round(2),hide_index=True,use_container_width=True)
+            fig=go.Figure(); fig.add_trace(go.Scatter(x=sim["Anno"],y=sim["Leva Lorda"],name="Leva lorda")); fig.update_layout(template=template,title="Leva look-through",height=340,yaxis_title="x NAV"); st.plotly_chart(fig,width="stretch")
+        st.dataframe(sim.round(2),hide_index=True,width="stretch")
         st.caption("La simulazione usa i look-through effettivi configurati e le stesse assunzioni fattoriali del benchmark; la cassa remunera al rendimento Cash impostato.")
 
     with tab_overlay:
@@ -916,7 +916,7 @@ def main():
             vt_hist,_=get_historical_proxy_returns(("VT",),int(settings["risk_years"])); vtvol=float(vt_hist["VT"].std()*math.sqrt(252)); vtsh=(eq_er-er["cash"]/100)/vtvol
         except Exception: vtvol=np.nan; vtsh=np.nan
         rows.append({"Strategia":"100% World Equity (VT proxy)","Leva":"1.00x","Rendimento atteso":f"{eq_er*100:.2f}%","Volatilità":f"{vtvol*100:.1f}%" if np.isfinite(vtvol) else "N/D","Sharpe":f"{vtsh:.2f}" if np.isfinite(vtsh) else "N/D"})
-        st.dataframe(pd.DataFrame(rows),hide_index=True,use_container_width=True)
+        st.dataframe(pd.DataFrame(rows),hide_index=True,width="stretch")
 
     st.markdown(f"<div style='text-align:center;color:{muted};padding:18px;border-top:1px solid {border}'>Return Stacking Engine v{APP_VERSION} · schema {CONFIG_SCHEMA_VERSION} · quantitative decision-support prototype</div>",unsafe_allow_html=True)
 
