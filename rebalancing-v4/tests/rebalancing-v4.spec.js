@@ -49,7 +49,7 @@ test.describe('Return Stacking Engine v4 browser QA', () => {
     await expect(page.getByText(/Distinta indicativa bloccata:/i)).toBeVisible({ timeout: 30_000 });
     const override = page.getByRole('checkbox', { name: /Override manuale: mostra comunque la distinta/i });
     await expect(override).toBeVisible({ timeout: 30_000 });
-    await override.check();
+    await override.check({ force: true });
     await expect(page.getByText(/Distinta Operativa Indicativa/i)).toBeVisible({ timeout: 30_000 });
     await expect(page.locator('[data-testid="stException"]')).toHaveCount(0);
   });
